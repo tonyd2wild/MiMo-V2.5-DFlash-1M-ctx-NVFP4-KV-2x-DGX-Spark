@@ -50,7 +50,10 @@ Aggregate (concurrent mixed-workload) sweep via
 | **C6** | **68.8** |
 
 Honest note: per-stream speculation dilutes under batched verification (C2–C4 flat);
-aggregate peaks at C6 = **68.8 tok/s of total box throughput**.
+aggregate peaks at C6 = **68.8 tok/s of total box throughput**. Practical read: this
+deploy is most efficient either solo (one stream at 50–62 tok/s on structured work) or
+fully loaded (6 streams, max aggregate) — the 2–4 stream middle trades speculation
+gains for batching gains roughly one-for-one.
 
 ## 500K-shape checkpoint — VERIFIED 2026-07-05
 
