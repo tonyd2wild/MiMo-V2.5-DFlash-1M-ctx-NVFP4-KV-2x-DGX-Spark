@@ -12,9 +12,10 @@ Self-contained two-node DGX Spark recipe for serving **MiMo-V2.5** with:
 [MiMo-V2.5-DFlash-FP8-KV-2x-DGX-Spark](https://github.com/tonyd2wild/MiMo-V2.5-DFlash-FP8-KV-2x-DGX-Spark),
 is the speed story: identical patch/recipe stack, FP8 KV, 500K ctx, 980,748-token pool,
 62.9 tok/s structured JSON. This variant swaps the target KV to 4-bit NVFP4 —
-go-live verified 2026-07-05: **a 3,167,247-token KV pool at the same 500K/GMU-0.83
-shape — 3.2x the FP8 pool, a 3M-token-class pool on two Sparks — at mean 37.6 tok/s,
-within 1% of the FP8 sibling's 38.0.**
+shipping config verified 2026-07-05: **1M context per request, 3.43 concurrent
+full-1M streams, a 3,427,495-token KV pool on two Sparks — 53 tok/s single-stream
+structured JSON, 68.8 tok/s aggregate at 6 streams, mean 37.8 tok/s (identical to the
+500K shape and within 1% of the FP8 sibling).**
 
 To our knowledge this is the **first public recipe running NVFP4 4-bit weights +
 NVFP4 4-bit KV + DFlash speculative decoding together**.
@@ -140,12 +141,14 @@ speed.**
 **Tool calling verified on this serve:** `tools` + `tool_choice:"auto"` returned a
 clean `get_weather` tool_call via the mimo parser.
 
-**Headroom:** the 3.17M pool supports relaunching at `MAX_MODEL_LEN=1000000` with ~3x
-concurrency — 1M-context serving on a single Spark pair (pool-verified, bench
-pending).
+**Shipping config — 1M context (verified):** relaunched at `MAX_MODEL_LEN=1000000`,
+`MAX_NUM_SEQS=6`: pool **3,427,495 tokens (3.43x full-1M streams)**, single-stream
+mean **37.8** (structured JSON 53.0), aggregate **68.8 tok/s at C6**. The
+million-token config costs nothing vs the 500K shape.
 
 The honesty rule carries over from the sibling repo: DFlash speedup is
-workload-shaped — **report the range (19.8–55.4, mean 37.6), not the peak**. Full
+workload-shaped — **report the range (19.4–53.0 single-stream, mean 37.8, 68.8
+aggregate at C6), not the peak**. Full
 details and the historical 8K-config reference in
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md).
 

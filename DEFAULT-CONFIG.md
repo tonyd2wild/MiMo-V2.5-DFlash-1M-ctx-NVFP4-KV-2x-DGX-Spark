@@ -6,11 +6,13 @@ This is the **canonical launch flow** for the NVFP4-KV variant — identical sta
 three env overrides** at launch. Order matters: **containers on both nodes → mods →
 engine patches → Ray head → Ray worker → serve from the head.**
 
-**Verified (go-live 2026-07-05):** TP=2 on Bluey (rank0/head) + Reddie (rank1/worker),
-served `:8000`. NVFP4 4-bit target KV @ 500K max context — **KV pool 3,167,247 tokens
-(6.33x for full-500K streams, 3.2x the FP8 sibling's pool)**. Single-stream mean
-**37.6 tok/s** (55.4 structured JSON → 19.8 narrative), within 1% of the FP8
-sibling's 38.0. Tool calling verified live (mimo parser). See `benchmarks/RESULTS.md`.
+**Verified (shipping config, 2026-07-05):** TP=2 on Bluey (rank0/head) + Reddie
+(rank1/worker), served `:8000`. NVFP4 4-bit target KV @ **1M max context** — **KV pool
+3,427,495 tokens (3.43x for full-1M streams)**. Single-stream mean **37.8 tok/s**
+(53.0 structured JSON → 19.4 narrative), identical to the 500K shape and within 1% of
+the FP8 sibling; **68.8 tok/s aggregate at 6 concurrent streams**. Tool calling
+verified live (mimo parser). Alternate 500K shape: pool 3,167,247 (6.33x 500K
+streams). See `benchmarks/RESULTS.md`.
 
 ---
 
@@ -139,7 +141,7 @@ export MODEL_PATH=/root/.cache/huggingface/hub/models--lukealonso--MiMo-V2.5-NVF
 export DFLASH_MODEL_PATH=/root/.cache/huggingface/hub/models--XiaomiMiMo--MiMo-V2.5-DFlash/snapshots/1f58446181abcaa01030fdbde835fbd38ae9a2b1/dflash
 export HEAD_ROCE_IP=192.168.192.1
 
-MAX_MODEL_LEN=500000 MAX_NUM_SEQS=6 MAX_NUM_BATCHED_TOKENS=4096 \
+MAX_MODEL_LEN=1000000 MAX_NUM_SEQS=6 MAX_NUM_BATCHED_TOKENS=4096 \
 BLOCK_SIZE=16 GPU_MEMORY_UTILIZATION=0.83 \
 KV_CACHE_DTYPE=nvfp4 ATTENTION_BACKEND=triton_attn_diffkv \
 SPEC_ATTENTION_BACKEND=triton_attn \
@@ -160,7 +162,7 @@ vllm serve $MODEL_PATH \
   --attention-backend triton_attn_diffkv \
   --kv-cache-dtype nvfp4 \
   --gpu-memory-utilization 0.83 \
-  --max-model-len 500000 --max-num-batched-tokens 4096 --max-num-seqs 6 \
+  --max-model-len 1000000 --max-num-batched-tokens 4096 --max-num-seqs 6 \
   --block-size 16 \
   --enable-prefix-caching \
   --enable-chunked-prefill \
@@ -176,16 +178,15 @@ vllm serve $MODEL_PATH \
 
 (with `NCCL_PROTO=LL` and `NCCL_MAX_NCHANNELS=2` exported by the script.)
 
-Boot evidence (verified 2026-07-05):
+Boot evidence (shipping 1M config, verified 2026-07-05):
 
 ```text
-GPU KV cache size: 3,167,247 tokens
-Maximum concurrency for 500,000 tokens per request: 6.33x
+GPU KV cache size: 3,427,495 tokens
+Maximum concurrency for 1,000,000 tokens per request: 3.43x
 ```
 
-3.2x the FP8 sibling's 980,748 tokens at the same 500K/GMU-0.83 shape. The pool also
-supports relaunching at `MAX_MODEL_LEN=1000000` with ~3x concurrency (pool-verified,
-bench pending).
+Alternate 500K shape (also verified): pool 3,167,247 tokens / 6.33x — 3.2x the FP8
+sibling's 980,748 at the identical 500K/GMU-0.83 shape.
 
 Key choices (all A/B verified on this stack):
 
