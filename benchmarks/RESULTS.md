@@ -1,52 +1,57 @@
 # Measured results — MiMo-V2.5 NVFP4 weights + NVFP4 KV + DFlash, TP=2, 2x DGX Spark (GB10)
 
-> ## ALL GO-LIVE NUMBERS PENDING — serve loading now (2026-07-05)
->
-> The 500K long-context NVFP4-KV serve (NCCL LL tuning, async scheduling on,
-> thinking off, rp 1.0) is booting as of 2026-07-05. This file gets the verified
-> numbers when the bench completes. Until then, only the **historical 8K-config
-> reference** at the bottom of this file is measured fact for this lane.
-
 Bench protocol (same as the FP8 sibling): single stream, temp 0, 512 max tokens,
 eager, `completion_tokens / wall` via [`dflash_bench.py`](dflash_bench.py), thinking
 off, repetition_penalty 1.0. Acceptance truth from engine-log `SpecDecoding metrics`
-lines (with async scheduling on, the prometheus drafts counter under-counts and
-inflates client-computed accept_len).
+lines — **with async scheduling on, the prometheus drafts counter under-counts and
+inflates client-computed accept_len** (client values like 10.34 are inflated; the
+engine log is truth).
 
-## Go-live checkpoint (PENDING)
+## Go-live checkpoint — VERIFIED 2026-07-05
 
 **Config:** NVFP4 4-bit target KV (`triton_attn_diffkv` + WMMA), drafter on stock
 `triton_attn` with bf16 KV, 500K max context, GMU 0.83, seqs 6, batched 4096, TP2
-Bluey+Reddie, NCCL LL tuning.
+Bluey+Reddie, NCCL LL tuning, async scheduling on.
 
-| metric | value |
-| --- | ---: |
-| KV pool @ 500K cfg | **PENDING** (expected ≈2x the FP8 sibling's 980,748 tokens) |
-| max concurrency for 500K streams | PENDING |
+Boot evidence:
 
-6-category bench, 512 tok, temp 0, single stream:
+```text
+GPU KV cache size: 3,167,247 tokens
+Maximum concurrency for 500,000 tokens per request: 6.33x
+```
 
-| workload | tok/s |
-| --- | ---: |
-| structured JSON (40-object array) | PENDING |
-| math (step-by-step) | PENDING |
-| json (short varied) | PENDING |
-| code | PENDING |
-| comms (email) | PENDING |
-| narrative prose | PENDING |
-| **range / mean** | **PENDING** |
+**3.17M tokens — 3.2x the FP8 sibling's 980,748 pool at the identical 500K/GMU-0.83
+shape.** The conservative 2x projection undersold it.
 
-Engine-log acceptance at the structured-JSON operating point: PENDING.
+6-category bench, 512 tok, temp 0, thinking off, rp 1.0, single stream, same NCCL LL
+tuning as the FP8 go-live:
 
-## Comparison vs the FP8 sibling (fill in when benched)
+| workload | NVFP4 KV tok/s | FP8 sibling | delta |
+| --- | ---: | ---: | ---: |
+| structured JSON (40-object array) | 55.4 | 62.9 | −12% |
+| json (short varied) | 45.0 | 42.4 | +6% |
+| math (step-by-step) | 44.1 | 43.3 | ~even |
+| code | 32.2 | 33.9 | −5% |
+| comms (email) | 29.2 | 27.5 | +6% |
+| narrative prose | 19.8 | 18.2 | +9% |
+| **mean** | **37.6** | **38.0** | **−1%** |
 
-| deploy | KV | max ctx | KV pool | best structured-JSON tok/s |
-| --- | --- | ---: | ---: | ---: |
-| [FP8 sibling](https://github.com/tonyd2wild/MiMo-V2.5-DFlash-FP8-KV-2x-DGX-Spark), go-live 2026-07-05 | fp8 | 500K | 980,748 tokens | 62.9 |
-| **this repo (NVFP4 KV)** | **nvfp4 (4-bit)** | **500K** | **PENDING** | **PENDING** |
+**Framing:** the mean holds within 1% of FP8; only the structured-JSON peak pays a
+~12% dequant tax. The trade in one line: **FP8 = peak speed (63), NVFP4 = 3.2x the
+context at the same average speed.**
 
-The claim to verify: ~2x the FP8 pool (→ ~2M-token class on 2 Sparks) at
-near-identical decode speed.
+**Tool calling verified on this exact serve:** an OpenAI-style request with `tools` +
+`tool_choice:"auto"` returned a clean `get_weather` tool_call via the mimo parser.
+
+## Comparison vs the FP8 sibling
+
+| deploy | KV | max ctx | KV pool | best structured-JSON tok/s | mean tok/s |
+| --- | --- | ---: | ---: | ---: | ---: |
+| [FP8 sibling](https://github.com/tonyd2wild/MiMo-V2.5-DFlash-FP8-KV-2x-DGX-Spark), go-live 2026-07-05 | fp8 | 500K | 980,748 tokens | 62.9 | 38.0 |
+| **this repo (NVFP4 KV), go-live 2026-07-05** | **nvfp4 (4-bit)** | **500K** | **3,167,247 tokens (3.2x)** | 55.4 | **37.6** |
+
+**Headroom:** the 3.17M pool supports relaunching at `MAX_MODEL_LEN=1000000` with ~3x
+concurrency — 1M-context serving on a single Spark pair. Pool-verified, bench pending.
 
 ## Historical reference — 8K test config (measured 2026-07-04, pre-NCCL-tuning)
 
@@ -71,6 +76,6 @@ slower operating point than the go-live protocol above):
 ## Honest framing
 
 Speedup is workload-dependent because acceptance tracks output structure: JSON/math at
-temp 0 draft best; free-form prose at temp > 0 drafts worst. When the go-live numbers
-land, quote the **range and mean, not the peak** — same rule as the FP8 sibling
-(whose go-live is 18.2–62.9, mean 38.0).
+temp 0 draft best; free-form prose at temp > 0 drafts worst. Quote this lane as
+**19.8–55.4 tok/s depending on workload, mean 37.6** — not the peak. Same rule as the
+FP8 sibling (18.2–62.9, mean 38.0).

@@ -6,10 +6,11 @@ This is the **canonical launch flow** for the NVFP4-KV variant — identical sta
 three env overrides** at launch. Order matters: **containers on both nodes → mods →
 engine patches → Ray head → Ray worker → serve from the head.**
 
-**Status:** engine stack proven live (NVFP4-KV + DFlash served and benched at the 8K
-test config on 2026-07-04: pool 250,790 tokens, mean 33.6 tok/s, pre-NCCL-tuning).
-The 500K long-context serve with NCCL LL tuning is **loading now (2026-07-05)** —
-pool/bench numbers land in `benchmarks/RESULTS.md` when verified.
+**Verified (go-live 2026-07-05):** TP=2 on Bluey (rank0/head) + Reddie (rank1/worker),
+served `:8000`. NVFP4 4-bit target KV @ 500K max context — **KV pool 3,167,247 tokens
+(6.33x for full-500K streams, 3.2x the FP8 sibling's pool)**. Single-stream mean
+**37.6 tok/s** (55.4 structured JSON → 19.8 narrative), within 1% of the FP8
+sibling's 38.0. Tool calling verified live (mimo parser). See `benchmarks/RESULTS.md`.
 
 ---
 
@@ -175,9 +176,16 @@ vllm serve $MODEL_PATH \
 
 (with `NCCL_PROTO=LL` and `NCCL_MAX_NCHANNELS=2` exported by the script.)
 
-Expected boot evidence: `GPU KV cache size: <PENDING>` — expected ≈2x the FP8
-sibling's 980,748 tokens at the same 500K/GMU-0.83 shape. Record the actual number in
-`benchmarks/RESULTS.md` when the serve is up.
+Boot evidence (verified 2026-07-05):
+
+```text
+GPU KV cache size: 3,167,247 tokens
+Maximum concurrency for 500,000 tokens per request: 6.33x
+```
+
+3.2x the FP8 sibling's 980,748 tokens at the same 500K/GMU-0.83 shape. The pool also
+supports relaunching at `MAX_MODEL_LEN=1000000` with ~3x concurrency (pool-verified,
+bench pending).
 
 Key choices (all A/B verified on this stack):
 

@@ -11,9 +11,10 @@ Self-contained two-node DGX Spark recipe for serving **MiMo-V2.5** with:
 **This is the CONTEXT story.** The sibling repo,
 [MiMo-V2.5-DFlash-FP8-KV-2x-DGX-Spark](https://github.com/tonyd2wild/MiMo-V2.5-DFlash-FP8-KV-2x-DGX-Spark),
 is the speed story: identical patch/recipe stack, FP8 KV, 500K ctx, 980,748-token pool,
-62.9 tok/s structured JSON. This variant swaps the target KV to 4-bit NVFP4 — roughly
-**2x the FP8 pool, putting a ~2M-token-class KV pool in reach on two Sparks** — while
-the earlier 8K-config measurements showed decode speed holding within ~2% of fp8.
+62.9 tok/s structured JSON. This variant swaps the target KV to 4-bit NVFP4 —
+go-live verified 2026-07-05: **a 3,167,247-token KV pool at the same 500K/GMU-0.83
+shape — 3.2x the FP8 pool, a 3M-token-class pool on two Sparks — at mean 37.6 tok/s,
+within 1% of the FP8 sibling's 38.0.**
 
 To our knowledge this is the **first public recipe running NVFP4 4-bit weights +
 NVFP4 4-bit KV + DFlash speculative decoding together**.
@@ -42,7 +43,8 @@ different KV dtypes**, split by vLLM's hybrid KV cache manager:
 
 - **Target layers** → `triton_attn_diffkv` with `--kv-cache-dtype nvfp4` (packed uint8,
   WMMA decode). MiMo-V2.5's DiffKV geometry (K=192 + V=128) compresses to a 4-bit
-  cache at roughly 2x the fp8 pool.
+  cache at **3.2x the fp8 pool** (measured: 3,167,247 vs 980,748 tokens at the
+  identical 500K config).
 - **Drafter layers** → stock `triton_attn` with **bf16 KV in their own hybrid cache
   group** (set via `"attention_backend":"triton_attn"` inside the speculative-config
   JSON — the launcher's `SPEC_ATTENTION_BACKEND` env). The drafter's KV is SWA-1024
@@ -107,18 +109,45 @@ On top of the shared four, this variant needs three more patches plus one mod un
   `recipe/apply-mods.sh`) is what unblocks quantized KV on the `triton_attn_diffkv`
   backend in the first place.
 
-## Results
+## Results — go-live verified 2026-07-05
 
-**PENDING — serve loading now (2026-07-05).** See
-[`benchmarks/RESULTS.md`](benchmarks/RESULTS.md) for the placeholder table and the
-historical 8K-config reference point (pool 250,790 tokens, mean 33.6 tok/s,
-pre-NCCL-tuning). The FP8 sibling's go-live numbers (980,748-token pool, 62.9 tok/s
-structured JSON, range 18.2–62.9, mean 38.0) are the comparison target; the working
-hypothesis from the 8K measurements is that 4-bit KV roughly doubles the pool at
-near-identical speed.
+Boot evidence at the 500K config (GMU 0.83, seqs 6):
+
+```text
+GPU KV cache size: 3,167,247 tokens
+Maximum concurrency for 500,000 tokens per request: 6.33x
+```
+
+**3.17M tokens — 3.2x the FP8 sibling's 980,748 pool at the identical shape.**
+
+6-category bench (512 tok, temp 0, thinking off, rp 1.0, single stream, NCCL LL
+tuning) vs the FP8 sibling:
+
+| workload | NVFP4 KV tok/s | FP8 sibling | delta |
+| --- | ---: | ---: | ---: |
+| structured JSON (40-object array) | 55.4 | 62.9 | −12% |
+| json (short varied) | 45.0 | 42.4 | +6% |
+| math (step-by-step) | 44.1 | 43.3 | ~even |
+| code | 32.2 | 33.9 | −5% |
+| comms (email) | 29.2 | 27.5 | +6% |
+| narrative prose | 19.8 | 18.2 | +9% |
+| **mean** | **37.6** | **38.0** | **−1%** |
+
+The mean holds within 1% of FP8; only the structured-JSON peak pays a ~12% dequant
+tax. **The trade: FP8 = peak speed (63), NVFP4 = 3.2x the context at the same average
+speed.**
+
+**Tool calling verified on this serve:** `tools` + `tool_choice:"auto"` returned a
+clean `get_weather` tool_call via the mimo parser.
+
+**Headroom:** the 3.17M pool supports relaunching at `MAX_MODEL_LEN=1000000` with ~3x
+concurrency — 1M-context serving on a single Spark pair (pool-verified, bench
+pending).
 
 The honesty rule carries over from the sibling repo: DFlash speedup is
-workload-shaped — **report the range, not the peak**.
+workload-shaped — **report the range (19.8–55.4, mean 37.6), not the peak**. Full
+details and the historical 8K-config reference in
+[`benchmarks/RESULTS.md`](benchmarks/RESULTS.md).
 
 ## Files
 
@@ -144,7 +173,7 @@ workload-shaped — **report the range, not the peak**.
 | `recipe/launch-dflash-v2.sh` | earlier DFlash launcher (8K probe phase) |
 | `recipe/launch-dflash.sh` | reference: the MTP/NVFP4-KV launcher the recipe evolved from |
 | `benchmarks/dflash_bench.py` | honest per-category bench (tok/s + acceptance from /metrics deltas) |
-| `benchmarks/RESULTS.md` | placeholders + historical 8K-config NVFP4-KV numbers |
+| `benchmarks/RESULTS.md` | verified go-live numbers + FP8 comparison + historical 8K-config reference |
 
 ## Quick start
 
