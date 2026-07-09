@@ -18,7 +18,11 @@ streams). See `benchmarks/RESULTS.md`.
 
 ## Model + image
 
-- **Target:** `lukealonso/MiMo-V2.5-NVFP4` (171G, pinned snapshot `a147dd04...`), in the
+- **Target (recommended):** `mitomtuna/MiMo-V2.5-0703-NVFP4` (171G, snapshot
+  `75f7cd8403e1285a8cf783e212fa14ce474b814c`) — quant of the drafter-matched 2026-07-03
+  target refresh; +13% on structured output vs the April base (see RESULTS). Drop-in:
+  only `MODEL_PATH` changes.
+- **Target (original):** `lukealonso/MiMo-V2.5-NVFP4` (171G, pinned snapshot `a147dd04...`), in the
   HF cache on **both** nodes.
 - **Drafter:** `XiaomiMiMo/MiMo-V2.5-DFlash`, **`dflash/` subdir only** (2.8G, snapshot
   `1f58446181abcaa01030fdbde835fbd38ae9a2b1`), on **both** nodes:

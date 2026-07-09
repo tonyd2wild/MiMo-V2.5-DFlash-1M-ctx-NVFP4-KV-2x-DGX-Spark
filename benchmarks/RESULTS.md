@@ -55,6 +55,32 @@ deploy is most efficient either solo (one stream at 50–62 tok/s on structured 
 fully loaded (6 streams, max aggregate) — the 2–4 stream middle trades speculation
 gains for batching gains roughly one-for-one.
 
+## Drafter-matched target — VERIFIED 2026-07-09 (recommended)
+
+The 2026-07-03 DFlash drop silently refreshed the target weights inside
+`XiaomiMiMo/MiMo-V2.5-DFlash` — the drafter was trained against THOSE weights, not
+the April release that `lukealonso/MiMo-V2.5-NVFP4` quantizes.
+[`mitomtuna/MiMo-V2.5-0703-NVFP4`](https://huggingface.co/mitomtuna/MiMo-V2.5-0703-NVFP4)
+is an NVFP4/MXFP8 quant of the refreshed target — structurally a drop-in for the
+lukealonso checkpoint (verified: same arch/geometry; swap `MODEL_PATH`, nothing else).
+
+Same 1M shipping config, two bench passes:
+
+| workload | old target (Apr base) | 0703 drafter-matched | verdict |
+| --- | ---: | ---: | --- |
+| structured JSON | 52.4–53.0 | **59.1–60.8** | **+13%, repeatable** |
+| json (short varied) | 45.7 | 43.8–44.2 | noise |
+| math | 40.0–45.3 | 35.5–40.4 | noisy category, overlapping bands |
+| code | 35.8 | 32.2–34.2 | noise |
+| comms / narrative | 27.6 / 19.4 | 27.1–27.6 / 19.1–20.1 | flat |
+
+Boot evidence @ 1M cfg: `GPU KV cache size: 3,269,303 tokens` / `3.27x` (slightly
+smaller pool than the lukealonso target — the 0703 quant keeps attention in MXFP8).
+
+**Net: the 4-bit-KV 1M build now clears 60 tok/s on structured output** — previously
+FP8-only territory — while keeping the 3.3M-token pool. The drafter/target mismatch
+predicted in theory was real, and worth ~13% exactly where DFlash is strongest.
+
 ## 500K-shape checkpoint — VERIFIED 2026-07-05
 
 **Config:** NVFP4 4-bit target KV (`triton_attn_diffkv` + WMMA), drafter on stock
