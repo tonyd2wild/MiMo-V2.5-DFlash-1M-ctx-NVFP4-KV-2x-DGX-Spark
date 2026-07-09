@@ -2,7 +2,7 @@
 
 Self-contained two-node DGX Spark recipe for serving **MiMo-V2.5** with:
 
-- **NVFP4 4-bit weights** — [`lukealonso/MiMo-V2.5-NVFP4`](https://huggingface.co/lukealonso/MiMo-V2.5-NVFP4) (171G, fits TP=2 across two GB10 Sparks)
+- **NVFP4 4-bit weights** — [`mitomtuna/MiMo-V2.5-0703-NVFP4`](https://huggingface.co/mitomtuna/MiMo-V2.5-0703-NVFP4) (171G, fits TP=2 across two GB10 Sparks) — the **drafter-matched 2026-07-03 target** (+13% structured-output speed vs the April-base [`lukealonso/MiMo-V2.5-NVFP4`](https://huggingface.co/lukealonso/MiMo-V2.5-NVFP4), which remains a supported alternate)
 - **NVFP4 4-bit KV cache** — the target's KV runs 4-bit via the `triton_attn_diffkv` backend
 - **Xiaomi DFlash speculative decoding** — the official drafter from
   [`XiaomiMiMo/MiMo-V2.5-DFlash`](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-DFlash), `dflash/` subdir only
@@ -211,6 +211,8 @@ This recipe stands on prior public work:
 
 - **Xiaomi MiMo team** — the MiMo-V2.5 model and the official DFlash drafter
   ([XiaomiMiMo/MiMo-V2.5-DFlash](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-DFlash)).
+- **mitomtuna** — the drafter-matched NVFP4/MXFP8 quant of the 0703 target refresh
+  ([mitomtuna/MiMo-V2.5-0703-NVFP4](https://huggingface.co/mitomtuna/MiMo-V2.5-0703-NVFP4))
 - **lukealonso** — the NVFP4 quantization of the target
   ([lukealonso/MiMo-V2.5-NVFP4](https://huggingface.co/lukealonso/MiMo-V2.5-NVFP4)),
   which is what makes a 2-Spark TP=2 deploy possible at all.

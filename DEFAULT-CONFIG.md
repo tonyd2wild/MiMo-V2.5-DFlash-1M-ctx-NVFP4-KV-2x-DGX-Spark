@@ -141,7 +141,9 @@ diffkv NVFP4 layout, and giving it its own group is also the fix for "the drafte
 eats the KV pool" (see `patch_spec_dtype_guard.py`).
 
 ```bash
-export MODEL_PATH=/root/.cache/huggingface/hub/models--lukealonso--MiMo-V2.5-NVFP4/snapshots/a147dd04d6cf861e43b2d783dcde23b53ab7ee68
+# DEFAULT: the drafter-matched 0703 target (recommended). To use the original
+# April-base quant instead, point at models--lukealonso--MiMo-V2.5-NVFP4/snapshots/a147dd04d6cf861e43b2d783dcde23b53ab7ee68
+export MODEL_PATH=/root/.cache/huggingface/hub/models--mitomtuna--MiMo-V2.5-0703-NVFP4/snapshots/75f7cd8403e1285a8cf783e212fa14ce474b814c
 export DFLASH_MODEL_PATH=/root/.cache/huggingface/hub/models--XiaomiMiMo--MiMo-V2.5-DFlash/snapshots/1f58446181abcaa01030fdbde835fbd38ae9a2b1/dflash
 export HEAD_ROCE_IP=192.168.192.1
 
